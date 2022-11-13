@@ -2,6 +2,7 @@ import _ from 'lodash';
 import * as tf from '@tensorflow/tfjs-node';
 import { generateDatasetFromSequencesAndLabels, getTrainingDataForStock } from './trainingDataGenerator';
 import { createModel, trainModel } from './util/modelCreator';
+import { grabAllSymbols } from './grabPrices';
 
 const sequenceLength = 6;
 
@@ -19,30 +20,49 @@ export const predict = (
 }
 
 
-const modelFolder = '../models/';
+const modelFolder = 'file://../models';
+const getModelPath = (symbol: string, sequenceLength: number) => {
+  const modelPath = `${modelFolder}/${symbol}.${sequenceLength}`;
+  return modelPath;
+}
+
+const createTrainAndSaveModel = async (symbol: string, sequenceLength: number) => {
+  const model = createModel(sequenceLength);
+
+  const trainingData = await getTrainingDataForStock(symbol, sequenceLength);
+  const { sequences, labels } = generateDatasetFromSequencesAndLabels(trainingData.sequences, trainingData.labels);
+  await trainModel(model, sequences, labels);
+
+  // Memory clean up: Dispose the training data.
+  sequences.dispose();
+  labels.dispose();
+
+  const modelPath = getModelPath(symbol, sequenceLength);
+  await model.save(modelPath);
+
+  return model;
+}
 
 (async () => {
   const symbol = 'SPY';
+  for (const symbol of await grabAllSymbols()) {
+    try {
 
-  const createTrainAndSaveModel = async (symbol: string, sequenceLength: number) => {
-    const model = createModel(sequenceLength);
+      console.log(symbol);
+      const model = await createTrainAndSaveModel(symbol, sequenceLength);
 
-    const trainingData = await getTrainingDataForStock(symbol, sequenceLength);
-    const { sequences, labels } = generateDatasetFromSequencesAndLabels(trainingData.sequences, trainingData.labels);
-    await trainModel(model, sequences, labels);
-
-    // Memory clean up: Dispose the training data.
-    sequences.dispose();
-    labels.dispose();
-
-    const modelPath = 'file://model';
-    await model.save(modelPath);
+    }
+    catch (e) {
+      console.error(symbol, e)
+    }
   }
 
-  const trainingData = await getTrainingDataForStock(symbol, sequenceLength);
-  const model = await tf.loadLayersModel('file://model/model.json');
-  _.map(trainingData.sequences, (x, i) => {
-    const prediction = predict(model, trainingData.sequences[i]);
-    console.log(`Label: ${trainingData.labels[i]} Prediction: ${prediction}`);
-  });
+  // const model = await createTrainAndSaveModel(symbol, sequenceLength);
+  // // const model = await tf.loadLayersModel(`${getModelPath(symbol, sequenceLength)}/model.json`);
+  // const trainingData = await getTrainingDataForStock(symbol, sequenceLength);
+
+  // _.map(trainingData.sequences, (x, i) => {
+  //   const prediction = predict(model, trainingData.sequences[i]);
+  //   console.log(`Label: ${trainingData.labels[i]} Prediction: ${prediction}`);
+  // });
 })();

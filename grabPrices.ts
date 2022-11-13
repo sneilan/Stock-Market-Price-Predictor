@@ -9,3 +9,9 @@ export const grabAllPricesBySymbolSortedDesc = async (symbol: string) => {
 
   return _.orderBy(results, ['date'], ['asc']);
 }
+
+export const grabAllSymbols = async () => {
+  const sequelize = await loadDb(storage);
+  const [results] = await sequelize.query(`select symbol from daily_bars group by symbol`) as [{ symbol: string }[], unknown];
+  return _.map(results, 'symbol');
+}
