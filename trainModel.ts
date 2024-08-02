@@ -43,14 +43,24 @@ const createTrainAndSaveModel = async (symbol: string, sequenceLength: number) =
   return model;
 }
 
+const loadModel = async (symbol: string, sequenceLength: number) => {
+  const model = await tf.loadLayersModel(`${getModelPath(symbol, sequenceLength)}/model.json`);
+  return model;
+}
+
 (async () => {
   const symbol = 'SPY';
   for (const symbol of await grabAllSymbols()) {
     try {
-
       console.log(symbol);
-      const model = await createTrainAndSaveModel(symbol, sequenceLength);
 
+      /*
+      const model = await createTrainAndSaveModel(symbol, sequenceLength);
+      */
+
+
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      await delay(1000)
     }
     catch (e) {
       console.error(symbol, e)
